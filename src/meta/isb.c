@@ -128,8 +128,6 @@ VGMSTREAM* init_vgmstream_isb(STREAMFILE* streamFile) {
 	if (start_offset == 0)
 		goto fail;
 
-
-
 	/* some files are marked */
 	loop_flag = 0;
 
@@ -175,6 +173,11 @@ VGMSTREAM* init_vgmstream_isb(STREAMFILE* streamFile) {
 #endif
 	case 0x05:
 		//some sort of sony codec - starts with MSFC - MSF format? Sony ATRAC3 maybe?
+		STREAMFILE *temp_sf = setup_subfile_streamfile(streamFile, start_offset, stream_size, "msf");
+		if (!temp_sf) goto fail;
+		vgmstream = init_vgmstream_msf(temp_sf);
+		if (!vgmstream) goto fail;
+		break;
 		break;
 	default: /* according to press releases ISACT may support WMA and XMA */
 		VGM_LOG("ISB: unknown codec %i\n", codec);
