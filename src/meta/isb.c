@@ -171,13 +171,35 @@ VGMSTREAM* init_vgmstream_isb(STREAMFILE* streamFile) {
 		vgmstream->num_samples = pcm_bytes / channel_count / (bps / 8);
 		break;
 #endif
+#ifdef VGM_USE_FFMPEG
+	case 0x04: {
+		//XMA
+		uint8_t buf[0x100];
+		size_t bytes;
+		off_t fmt_offset = start_offset;
+		size_t fmt_size = 0x20;
+
+		start_offset += fmt_size;
+		stream_size -= fmt_size;
+
+		/* XMA1 "fmt" chunk (BE, unlike the usual LE) */
+		bytes = ffmpeg_make_riff_xma_from_fmt_chunk(buf, sizeof(buf), fmt_offset, fmt_size, stream_size, streamFile, 1);
+		vgmstream->codec_data = init_ffmpeg_header_offset(streamFile, buf, bytes, start_offset, stream_size);
+		if (!vgmstream->codec_data) goto fail;
+		vgmstream->coding_type = coding_FFmpeg;
+		vgmstream->layout_type = layout_none;
+
+		vgmstream->num_samples = pcm_bytes / channel_count / (bps / 8);
+		xma_fix_raw_samples(vgmstream, streamFile, start_offset, stream_size, fmt_offset, 1, 1);
+		break;
+	}
+#endif
 	case 0x05:
 		//some sort of sony codec - starts with MSFC - MSF format? Sony ATRAC3 maybe?
-		STREAMFILE *temp_sf = setup_subfile_streamfile(streamFile, start_offset, stream_size, "msf");
+		STREAMFILE * temp_sf = setup_subfile_streamfile(streamFile, start_offset, stream_size, "msf");
 		if (!temp_sf) goto fail;
 		vgmstream = init_vgmstream_msf(temp_sf);
 		if (!vgmstream) goto fail;
-		break;
 		break;
 	default: /* according to press releases ISACT may support WMA and XMA */
 		VGM_LOG("ISB: unknown codec %i\n", codec);
